@@ -10,13 +10,14 @@ SCREEN_WIDTH = 800
 SCREEN_HEIGHT = 600
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 pygame.display.set_caption("_ZKWhiteCastle")
+pygame.display.set_caption("ZKWhiteCastle")
 
 # Colors
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-RED = (255, 0, 0)  # Color for the player
-BLUE = (0, 0, 255)  # Color for the card
-GREEN = (0, 255, 0)  # Color for the enemy
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+GREEN = (0, 255, 0)
 
 # Clock for controlling the frame rate
 clock = pygame.time.Clock()
@@ -30,11 +31,12 @@ class Player:
         self.width = width
         self.height = height
         self.speed = 5
+        self.max_health = 100
         self.health = 100
         self.attack_power = 10
         self.defense = 0
-        self.deck = Deck()  # Player's deck
-        self.turn = True  # To check if it's the player's turn
+        self.deck = Deck()
+        self.turn = True
 
     def move(self, keys):
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
@@ -50,29 +52,27 @@ class Player:
         pygame.draw.rect(screen, RED, (self.x, self.y, self.width, self.height))
 
     def draw_cards(self, screen):
-        # Draw the cards in the player's hand
         for i, card in enumerate(self.deck.hand):
-            pygame.draw.rect(screen, BLUE, (50 + i * 100, SCREEN_HEIGHT - 100, 80, 120))  # Card position
+            pygame.draw.rect(screen, BLUE, (50 + i * 100, SCREEN_HEIGHT - 100, 80, 120))
             font = pygame.font.SysFont("Arial", 20)
             text = font.render(card.name, True, WHITE)
-            screen.blit(text, (50 + i * 100 + 10, SCREEN_HEIGHT - 90))  # Card name text
+            screen.blit(text, (50 + i * 100 + 10, SCREEN_HEIGHT - 90))
 
     def use_card(self, card, enemy):
         card.effect(self, enemy)
 
 # Enemy class
 class Enemy:
-    def __init__(self):
-        self.health = 100
-        self.attack_power = 10
+    def __init__(self, stage):
+        self.health = 80 + stage * 20
+        self.attack_power = 10 + stage * 5
         self.defense = 0
-        self.deck = Deck()  # Enemy's deck
+        self.deck = Deck()
 
     def draw(self, screen):
         pygame.draw.rect(screen, GREEN, (SCREEN_WIDTH - 100, 100, 50, 50))
 
     def take_turn(self, player):
-        # Simple AI: The enemy randomly selects a card to play
         card = random.choice(self.deck.hand)
         print(f"Enemy uses {card.name} card!")
         card.effect(self, player)
@@ -81,7 +81,7 @@ class Enemy:
 class Card:
     def __init__(self, name, effect):
         self.name = name
-        self.effect = effect  # The effect function the card will trigger
+        self.effect = effect
 
 # Deck Class
 class Deck:
@@ -89,7 +89,6 @@ class Deck:
         self.hand = self.create_deck()
 
     def create_deck(self):
-        # Create a deck with different types of cards
         attack_card = Card("Attack", self.attack_effect)
         heal_card = Card("Heal", self.heal_effect)
         defense_card = Card("Defense", self.defense_effect)
@@ -100,67 +99,83 @@ class Deck:
         return random.choice(self.hand)
 
     def attack_effect(self, player, enemy):
-        # Effect of the attack card (deal damage)
-        damage = max(0, player.attack_power - enemy.defense)  # Apply defense
+        damage = max(0, player.attack_power - enemy.defense)
         enemy.health -= damage
         print(f"Attack! Enemy's health is now: {enemy.health}")
 
     def heal_effect(self, player, enemy):
-        # Effect of the heal card (restore health)
         player.health += 10
         print(f"Heal! Player's health is now: {player.health}")
 
     def defense_effect(self, player, enemy):
-        # Effect of the defense card (increase defense)
         player.defense += 5
         print(f"Defense! Player's defense is now: {player.defense}")
 
     def buff_effect(self, player, enemy):
-        # Effect of the buff card (increase attack power)
         player.attack_power += 5
         print(f"Buff! Player's attack power is now: {player.attack_power}")
 
 def main():
     running = True
-    player = Player(400, 300, 50, 50)  # Create a player object
-    enemy = Enemy()  # Create an enemy object
-    selected_card = None  # Track the selected card
+    player = Player(400, 300, 50, 50)
+    stage = 1
+    max_stages = 3
+    enemy = Enemy(stage)
+    selected_card = None
 
     while running:
-        # Event handling
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
 
-            # Select a card when the player clicks on it (for simplicity, just clicking on the cards)
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN and player.turn:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
                 for i, card in enumerate(player.deck.hand):
                     if 50 + i * 100 < mouse_x < 50 + (i + 1) * 100 and SCREEN_HEIGHT - 100 < mouse_y < SCREEN_HEIGHT - 100 + 120:
                         selected_card = card
                         print(f"Selected {card.name} card!")
 
-        # Use the selected card
         if selected_card and player.turn:
             player.use_card(selected_card, enemy)
-            selected_card = None  # Reset the selection after using the card
-            player.turn = False  # End player's turn
-            enemy.take_turn(player)  # Enemy takes its turn
-            player.turn = True  # Back to player's turn
+            selected_card = None
+            player.turn = False
+            pygame.time.delay(300)
+            enemy.take_turn(player)
+            player.turn = True
 
-        # Game logic updates
+        if enemy.health <= 0:
+            stage += 1
+            if stage > max_stages:
+                print("You Win!")
+                pygame.time.delay(2000)
+                running = False
+            else:
+                enemy = Enemy(stage)
+                player.health = min(player.health + 20, player.max_health)
+                player.attack_power += 2
+                player.defense += 1
+                print("Next enemy!")
+
+        if player.health <= 0:
+            print("Game Over!")
+            pygame.time.delay(2000)
+            running = False
+
         keys = pygame.key.get_pressed()
         player.move(keys)
 
-        # Rendering
-        screen.fill(WHITE)  # Clear the screen with white
-        player.draw(screen)  # Draw the player
-        player.draw_cards(screen)  # Draw the player's cards
-        enemy.draw(screen)  # Draw the enemy
+        screen.fill(WHITE)
+        player.draw(screen)
+        player.draw_cards(screen)
+        enemy.draw(screen)
 
-        pygame.display.flip()  # Update the display
+        font_ui = pygame.font.SysFont("Arial", 24)
+        player_health_text = font_ui.render(f"Player HP: {player.health}", True, BLACK)
+        enemy_health_text = font_ui.render(f"Enemy HP: {enemy.health}", True, BLACK)
+        screen.blit(player_health_text, (20, 20))
+        screen.blit(enemy_health_text, (SCREEN_WIDTH - 200, 20))
 
-        # Control frame rate
+        pygame.display.flip()
         clock.tick(FPS)
 
     pygame.quit()
@@ -168,4 +183,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-0
