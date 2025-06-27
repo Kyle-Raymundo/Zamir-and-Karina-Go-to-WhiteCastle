@@ -4,7 +4,7 @@ import random
 import math
 
 # ─────────────────────────────────────────
-#  Initialisation s
+#  Initialisation
 # ─────────────────────────────────────────
 pygame.init()
 
